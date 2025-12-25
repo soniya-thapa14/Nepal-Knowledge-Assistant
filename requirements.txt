@@ -1,0 +1,12 @@
+sentence-transformers
+faiss-cpu
+chromadb
+langchain
+langchain-core
+langchain-community
+langchain-text-splitters
+langchain-huggingface
+langchain-groq
+langchain-ollama
+dotenv
+streamlit
