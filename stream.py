@@ -54,7 +54,6 @@ with st.sidebar:
             st.session_state.example_query = ex
 
 # Initialize assistant (only once)
-@st.cache_resource
 def get_assistant(llm_type,max_history):
     try:
         return NepalAssistant(llm_type=llm_type,
@@ -111,16 +110,30 @@ if query:
     with st.chat_message("assistant"):
         with st.spinner("🤔 Thinking..."):
             try:
-                # Ask assistant
-                answer = assistant.ask(query, k=3)
+                if 'image' in query.lower() or 'photo' in query.lower():
+                    original_llm = assistant.llm
+                    if assistant.ollama_llm:
+                        assistant.llm = assistant.ollama_llm
+                                # Ask assistant
+                result = assistant.ask(query, k=3)
+                print(f"STREAMLIT DEBUG - Images: {result.get('images')}")
 
                 # Display assistant answer
-                st.markdown(answer)
+                st.markdown(result['answer'])
+
+                if result.get('images'):
+                    st.markdown("🖼️ Images:")
+                    for img_url in result['images']:
+                        try:
+                            st.image(img_url, width = 'stretch')
+                        except:
+                            st.markdown(f"[View image]({img_url})")
+                
 
                 # Append message to session state
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": answer
+                    "content": result['answer']
                 })
 
                 # ---- Handle curated online resources ----
@@ -135,6 +148,10 @@ if query:
                             
                             for link in links:
                                 st.markdown(f"- **[{link['name']}]({link['url']})**: {link['desc']}")
+
+                #show if web search was used
+                if result.get('used_web_search'):
+                    st.info("🌐 Web search was used for this answer.")
 
             except Exception as e:
                 error_msg = f"❌ Error: {str(e)}"
