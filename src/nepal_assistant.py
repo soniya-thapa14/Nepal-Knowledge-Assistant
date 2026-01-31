@@ -217,18 +217,23 @@ Standalone question:"""
             use_web = False
             
         # Switch LLM based on web search need
-        if use_web and self.ollama_llm:
-            active_llm = self.ollama_llm
-            llm_type = "ollama"
-            print("🎯 Using Ollama for web search")
-        elif not use_web and self.groq_llm:
-            active_llm = self.groq_llm
-            llm_type = "groq"
-            print("🎯 Using Groq for regular question")
+        if use_web:
+            if self.groq_llm:
+                active_llm = self.groq_llm
+                llm_type = "groq"
+                print("🎯 Using Groq for web search (safe for hosting)")
+            elif self.ollama_llm:
+                active_llm = self.ollama_llm
+                llm_type = "ollama"
+                print("🎯 Using Ollama for web search")
         else:
-            active_llm = self.llm
-            llm_type = "groq" if isinstance(active_llm, ChatGroq) else "ollama"
-        
+            if self.groq_llm:
+                active_llm = self.groq_llm
+                llm_type = "groq"
+                print("🎯 Using Groq for local question")
+            elif self.ollama_llm:
+                active_llm = self.ollama_llm
+                llm_type = "ollama"
         # BUid contexts
         local_context = "\n\n".join([
             f"[Local Source {i+1}]\n{doc.page_content}" for i, doc in enumerate(docs)
@@ -248,7 +253,7 @@ Standalone question:"""
             recent = self.conversation_history[-self.max_history:]
             history_text = "\n".join([f"Q: {q}\nA: {a}" for q, a in recent])
 
-        prompt = f"""You are an expert on Nepal. Answer clearly and concisely using the provided information.
+        prompt = f"""You are the Nepal Knowledge Assistant. You are polite, knowledgeable, and direct.
 
 {f"Previous Conversation:\n{history_text}\n" if history_text else ""}
 
@@ -258,13 +263,13 @@ Information Sources:
 Question: {reformulated}
 
 CRITICAL INSTRUCTIONS:
-- ALWAYS prioritize Web Search Results over Local Sources for current events
-- Use specific facts, names, dates, and numbers from the sources
-- If web results have current info, use that as the PRIMARY answer
-- Quote key information from web sources
-- Be specific about what happened, when it happened, and who was involved
-- If sources conflict, prioritize the most recent web source
-- Do NOT make up or guess any information
+1. **GREETING:** Start with a brief "Namaste" or "Hello" ONLY if this is the start of the conversation.
+2. **SOURCE PRIORITY:** Use Web Search for current events (2025-2026) and Local Sources for culture/geography.
+3. **NO META-TALK:** Do not say "Searching...", "I found...", or "According to the sources".
+4. **NO LINK SPAM:** Do not list URLs or sources in your text.
+5. **IMAGE REQUESTS:** If images are found, provide exactly a 1-2 sentence description of the subject.
+6. **CONCISENESS:** Total response must be 2-4 sentences maximum.
+7. Do NOT mention web search or sources
 
 Answer:"""
 
@@ -303,7 +308,7 @@ Answer:"""
         
 
         time_sensitive_patterns = [
-            'who is', 'who are','how many'
+            'who is', 'who are','how many',
             'minister', 'president', 'cabinet', 'mayor', 'appointed',
             'squad', 'team', 'players', 'roster',
             'result', 'score', 'winner', 'match', 'final',
