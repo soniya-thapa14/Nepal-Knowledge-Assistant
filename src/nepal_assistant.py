@@ -270,6 +270,9 @@ CRITICAL INSTRUCTIONS:
 5. **IMAGE REQUESTS:** If images are found, provide exactly a 1-2 sentence description of the subject.
 6. **CONCISENESS:** Total response must be 2-4 sentences maximum.
 7. Do NOT mention web search or sources
+8. **SUBJECT LOCK:** The user is asking about {subject}. Do NOT provide information about any other mountain, person, or place.
+9. **STRICT CONTEXT:** Use ONLY the provided Information Sources. If the height of {subject} is in the sources, use that exact number.
+10. **NO CARRYOVER:** Ignore facts from previous questions if they are about a different subject.
 
 Answer:"""
 
