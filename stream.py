@@ -149,9 +149,6 @@ if query:
                             for link in links:
                                 st.markdown(f"- **[{link['name']}]({link['url']})**: {link['desc']}")
 
-                #show if web search was used
-                if result.get('used_web_search'):
-                    st.info("🌐 Web search was used for this answer.")
 
             except Exception as e:
                 error_msg = f"❌ Error: {str(e)}"

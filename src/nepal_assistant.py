@@ -81,7 +81,7 @@ class NepalAssistant:
         if not self.conversation_history:
             return question
 
-        follow_up_indicators = ['it', 'that', 'there', 'them', 'this', 'those',
+        follow_up_indicators = ['it','its', "it's", 'that', 'there', 'them', 'this', 'those',
                                 'what about', 'how about', 'tell me more', 'more info']
 
         if not any(word in question.lower() for word in follow_up_indicators):
