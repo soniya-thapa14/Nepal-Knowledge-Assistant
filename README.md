@@ -23,6 +23,7 @@ Stack
 Setup
 
 Clone the repo
+
 git clone https://github.com/soniya-thapa14/Nepal-Knowledge-Assistant.git
 
 
