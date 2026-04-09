@@ -1,4 +1,3 @@
-# src/nepal_assistant.py - With Serper.dev (No Credit Card Required!)
 import os
 import requests
 from dotenv import load_dotenv
@@ -28,7 +27,7 @@ class NepalAssistant:
         # Initialize both LLMs
         self.llm_type = llm_type
         groq_key = os.environ.get("GROQ_API_KEY")
-        
+         
         # Groq LLM
         self.groq_llm = None
         if groq_key:
@@ -76,15 +75,43 @@ class NepalAssistant:
         self.conversation_history = []
         self.max_history = max_history
         print("✅ Ready!\n")
-    
-    def _reformulate_question(self, question):
+
+    def _is_follow_up(self, question):
         if not self.conversation_history:
-            return question
+            return False
 
-        follow_up_indicators = ['it','its', "it's", 'that', 'there', 'them', 'this', 'those',
-                                'what about', 'how about', 'tell me more', 'more info']
+        recent_history = "\n".join([
+            f"Q: {q}\nA: {a[:150]}" for q, a in self.conversation_history[-2:]
+        ])
 
-        if not any(word in question.lower() for word in follow_up_indicators):
+        prompt = f"""Recent conversation:
+    {recent_history}
+
+    New question: "{question}"
+
+    Does this question depend on the previous conversation to make sense?
+
+    Answer YES if:
+    - Uses pronouns like him, her, they, it, this, that
+    - Refers to something without naming it
+    - Would be unclear without conversation history
+
+    Answer NO if:
+    - It is a complete standalone question
+
+    Answer ONLY: YES or NO"""
+
+        try:
+            if self.groq_llm:
+                response = self.groq_llm.invoke(prompt).content.strip().upper()
+            else:
+                response = self.ollama_llm.invoke(prompt).strip().upper()
+            return "YES" in response
+        except:
+            return False
+        
+    def _reformulate_question(self, question):
+        if not self._is_follow_up(question):
             return question
 
         recent_history = "\n".join([
@@ -92,13 +119,15 @@ class NepalAssistant:
         ])
 
         prompt = f"""Rewrite the user's question as a standalone question
-if it depends on previous context.
-Conversation:
-{recent_history}
+                if it depends on previous context. If the user says "them", "they", or similar 
+                and the conversation mentions multiple people, include all of them.
+                If someone held multiple terms, reference their most recent term.
+    Conversation:
+    {recent_history}
 
-User's new question: "{question}"
+    User's new question: "{question}"
 
-Standalone question:"""
+    Write ONLY the standalone question, nothing else:"""
 
         try:
             if isinstance(self.llm, ChatGroq):
@@ -106,7 +135,7 @@ Standalone question:"""
             else:
                 reformulated = self.llm.invoke(prompt).strip()
 
-            if len(reformulated) > 5 and reformulated.endswith('?'):
+            if len(reformulated) > 5:
                 print(f"💭 Reformulated: {reformulated}")
                 return reformulated
         except Exception as e:
@@ -121,7 +150,7 @@ Standalone question:"""
             url = "https://google.serper.dev/search"
             
             payload = {
-                "q": f"{query} Nepal 2025",  # Add year for recent results
+                "q": f"{query} Nepal 2026",  # Add year for recent results
                 "gl": "np",  # Nepal
                 "hl": "en",  # English
                 "num": 5     # Top 5 results
@@ -173,7 +202,7 @@ Standalone question:"""
     
 
                 if "images" in img_data:
-                    for img in img_data["images"][:5]:
+                    for img in img_data["images"][:2]:
                         images.append(img.get("imageUrl"))
 
                     print(f"found {len(images)} images")
@@ -194,6 +223,17 @@ Standalone question:"""
         return self._search_serper(question)
 
     def ask(self, question, k=5):
+
+        greetings = ["how are you", "hello", "hi", "hey", "namaste", "good morning", "good evening"]
+        q = question.lower().strip()
+        if q in greetings:
+            return {
+                'answer': "Namaste! 🙏 I'm here to help you learn about Nepal. What would you like to know? 🏔️",
+                'sources': [],
+                'used_web_search': False,
+                'llm_used': 'none',
+                'images': []
+            }
 
         """Ask with smart LLM selection: Ollama for web search, Groq for regular"""
         reformulated = self._reformulate_question(question)
@@ -263,14 +303,14 @@ Information Sources:
 Question: {reformulated}
 
 CRITICAL INSTRUCTIONS:
-1. **GREETING:** Start with a brief "Namaste" or "Hello" ONLY if this is the start of the conversation.
-2. **SOURCE PRIORITY:** Use Web Search for current events (2025-2026) and Local Sources for culture/geography.
-3. **NO META-TALK:** Do not say "Searching...", "I found...", or "According to the sources".
-4. **NO LINK SPAM:** Do not list URLs or sources in your text.
-5. **IMAGE REQUESTS:** If images are found, provide exactly a 1-2 sentence description of the subject.
-6. **CONCISENESS:** Total response must be 2-4 sentences maximum.
-7. Do NOT mention web search or sources
-
+1. Use Web Search for current events (2025-2026) and Local Sources for culture/geography.
+2. Do not say "Searching...", "I found...", or "According to the sources".
+3. Do not list URLs or sources in your text.
+4. If images are found, provide exactly a 1-2 sentence description of the subject.
+5. 2-3 sentences maximum. Give the direct answer first, then one supporting fact only.
+6. Do NOT mention web search or sources
+7. If the question is completely unrelated to Nepal, politely say "I'm only able to answer questions about Nepal. What would you like to know about Nepal?
+8. Never make subjective comparisons or say one place is "better" than another. Stay neutral and factual. 
 Answer:"""
 
         try:
@@ -299,50 +339,39 @@ Answer:"""
             'images': images
         }
     def time_sensitive_questions(self,question):
-
-        time_keywords = ['current','now', 'today','latest', 'recent','2024','2025','2026','this year']
-        q_lower = question.lower()
-
-        if any(kw in q_lower for kw in time_keywords):
-            return True
-        
-
-        time_sensitive_patterns = [
-            'who is', 'who are','how many',
-            'minister', 'president', 'cabinet', 'mayor', 'appointed',
-            'squad', 'team', 'players', 'roster',
-            'result', 'score', 'winner', 'match', 'final',
-            'exam', 'admission', 'neb', 'tu', 'ku', 'pu',
-            'announced', 'elected', 'new'
-        ]
-
-        if any(pattern in q_lower for pattern in time_sensitive_patterns):
-            return self.ask_llm_is_time_sensitive(question)
-        
-        return False
+        return self.ask_llm_is_time_sensitive(question)
     
     def ask_llm_is_time_sensitive(self,question):
-        prompt = f"""Question": '{question}'
+        context = ""
+        if self.conversation_history:
+            recent = self.conversation_history[-2:]
+            context = "Recent conversation:\n" + "\n".join(
+                [f"Q: {q}\nA: {a[:150]}" for q, a in recent]
+            )
+        prompt = f"""{context}
+        Question": '{question}'
 
-    Does this question require Current(@025-2026) information?
+    Does this question require searching the web to answer accurately?
 
-    Answer YES if:
-    -Asks about someone's current position/role
-    -Asks about current team rosters or squads
-    -Ask about recent results,announcements,rules,regulations or news
-    -Needs real-time or 2025-2026 data
+Answer YES if:
+- Asks about current/recent positions, roles, events
+- Asks about who came before/after someone in a role
+- Asks about results, scores, news, announcements
+- The answer could have changed in the last year
+- Needs specific real-world data that a static knowledge base might not have
 
-    Answer NO if:
-    -Asks about historical facts
-    -Asks about stable information
+Answer NO if:
+- Asks about historical facts, geography, culture, definitions
+- The answer is stable and unlikely to change
 
-    Answer ONLY: YES or NO"""
+Answer ONLY: YES or NO"""
         
         try:
             if self.groq_llm:
                 response = self.groq_llm.invoke(prompt).content.strip().upper()
             else:
                 response = self.ollama_llm.invoke(prompt).strip().upper()
+            print(f"DEBUG LLM time-sensitive check: '{response}'")  
             return "YES" in response
         except Exception as e:
             print(f" Time-sensitivity check failed: {e}, defaulting to YES")
@@ -361,9 +390,10 @@ if __name__ == "__main__":
     assistant = NepalAssistant(enable_web_search=True)
     
     question = [
-        "Who is the education minister?",
-        "NEPAL cricket team 2026"
-    ]
+        "What is the capital of Japan?",
+        "Tell me about Elon Musk",
+        "What is Bitcoin?"
+            ]
 
     for q in question:
         print(f"\n{'='*70}")

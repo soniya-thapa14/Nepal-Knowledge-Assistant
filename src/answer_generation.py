@@ -24,7 +24,7 @@ class NepalRAG:
         self.vectorstore = Chroma(
             persist_directory=db_path,
             embedding_function=embeddings
-        )
+        ) 
         
         groq_key = os.environ.get("GROQ_API_KEY")
         if not groq_key:
